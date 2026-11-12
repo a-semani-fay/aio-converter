@@ -13,6 +13,12 @@ export const FORMATS = {
     group: "video", label: "MP4 (H.264 + AAC)", mime: "video/mp4", remux: true,
     video: h264, audio: aac, extra: ["-movflags", "+faststart"],
   },
+  mp4_hevc: {
+    group: "video", ext: "mp4", label: "MP4 (H.265/HEVC + AAC)", mime: "video/mp4", threads: true,
+    video: (q, threads) => ["-c:v", "libx265", "-preset", "veryfast", "-crf", pick(q, ["22", "27", "32"]),
+      "-x265-params", `pools=${threads}:log-level=warning`, "-pix_fmt", "yuv420p", "-tag:v", "hvc1"],
+    audio: aac, extra: ["-movflags", "+faststart"],
+  },
   webm: {
     group: "video", label: "WebM (VP8 + Vorbis)", mime: "video/webm",
     video: (q) => ["-c:v", "libvpx", "-deadline", "realtime", "-cpu-used", "4",
@@ -75,7 +81,7 @@ export const GROUP_LABELS = { video: "Video", audio: "Audio", image: "Image" };
 const EXT_KIND = {
   video: "mp4 m4v mov mkv webm avi wmv flv mpg mpeg ts mts m2ts 3gp ogv vob",
   audio: "mp3 wav flac ogg oga opus m4a aac wma aiff aif amr ac3 mka",
-  image: "png jpg jpeg webp bmp tif tiff gif ico tga",
+  image: "png jpg jpeg webp bmp tif tiff gif ico tga heic heif hif",
 };
 
 /** Guess "video" | "audio" | "image" | null from a File's MIME type and extension. */
@@ -117,7 +123,9 @@ export function splitArgs(text) {
 
 /**
  * Build the FFmpeg argument list.
- * opts: { format, quality, height, mute, start, end, extra }
+ * opts: { format, quality, height, mute, start, end, extra, inputArgs, threads }
+ * `inputArgs` describe the input (e.g. raw pixels); `threads` > 0 when the
+ * multi-threaded core is in use.
  */
 export function buildArgs(input, output, opts) {
   const f = FORMATS[opts.format];
@@ -125,6 +133,7 @@ export function buildArgs(input, output, opts) {
   const args = ["-hide_banner"];
   if (opts.start) args.push("-ss", opts.start);
   if (opts.end) args.push("-to", opts.end);
+  if (opts.inputArgs) args.push(...opts.inputArgs);
   args.push("-i", input);
 
   const h = Number(opts.height) || 0;
@@ -151,13 +160,28 @@ export function buildArgs(input, output, opts) {
     const scale = h
       ? `scale=-2:'trunc(min(${h},ih)/2)*2'`
       : "scale=trunc(iw/2)*2:trunc(ih/2)*2";
-    args.push("-vf", scale, ...f.video(q));
+    args.push("-vf", scale, ...f.video(q, opts.threads || 1));
     if (opts.mute) args.push("-an");
     else args.push(...f.audio(q));
     if (f.extra) args.push(...f.extra);
   }
 
+  // Emscripten's thread pool is fixed in size, so never let encoders ask for more.
+  if (opts.threads) args.push("-threads", String(opts.threads));
   if (opts.extra) args.push(...splitArgs(opts.extra));
   args.push(output);
   return args;
+}
+
+/** File extension for an output format key. */
+export const extFor = (key) => FORMATS[key].ext ?? key;
+
+const HEIF_BRANDS = ["heic", "heix", "heim", "heis", "hevc", "hevx", "mif1", "msf1"];
+
+/** True when the file is a HEIC/HEIF image (checked by extension, MIME type and file signature). */
+export async function isHeif(file) {
+  if (/^(heic|heif|hif)$/.test(extensionOf(file.name)) || /image\/hei[cf]/.test(file.type)) return true;
+  const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const text = String.fromCharCode(...head);
+  return text.slice(4, 8) === "ftyp" && HEIF_BRANDS.includes(text.slice(8, 12));
 }
