@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AIO Converter — convert media in your browser</title>
+  <meta name="description" content="Convert video, audio and images entirely in your browser with FFmpeg. Files never leave your device.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e5633a'/%3E%3Cpath d='M9 12h11l-3-3m6 11H12l3 3' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <!-- Enables cross-origin isolation (needed for multi-threaded FFmpeg) on hosts that cannot send COOP/COEP headers. -->
+  <script src="coi-serviceworker.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1><span class="mark" aria-hidden="true">⇄</span> AIO Converter</h1>
+    <p>Convert video, audio and images right here in your browser. Nothing is uploaded.</p>
+  </header>
+
+  <main>
+    <label id="drop" class="drop" for="file">
+      <input id="file" type="file" accept="video/*,audio/*,image/*,.heic,.heif,.mkv,.flv,.ts,.mts,.wma,.flac,.opus,.avi,.mov">
+      <span class="drop-title">Drop a file here, or <u>browse</u></span>
+      <span class="drop-sub">Video, audio or image — MP4, MKV, MOV, WebM, MP3, WAV, FLAC, PNG, JPEG, WebP, HEIC, GIF and more</span>
+    </label>
+
+    <section id="work" class="card" hidden>
+      <div class="fileinfo">
+        <div class="fileinfo-text">
+          <div id="fname" class="fname"></div>
+          <div id="fmeta" class="fmeta"></div>
+        </div>
+        <button id="change" type="button" class="ghost">Change file</button>
+      </div>
+
+      <form id="opts" class="opts">
+        <label class="field">
+          <span>Convert to</span>
+          <select id="format"></select>
+        </label>
+        <label class="field" id="f-quality">
+          <span>Quality</span>
+          <select id="quality"></select>
+        </label>
+        <label class="field" id="f-height">
+          <span>Resolution</span>
+          <select id="height">
+            <option value="">Original</option>
+            <option value="2160">2160p (4K)</option>
+            <option value="1080">1080p</option>
+            <option value="720">720p</option>
+            <option value="480">480p</option>
+            <option value="360">360p</option>
+            <option value="240">240p</option>
+          </select>
+        </label>
+        <label class="field" id="f-start">
+          <span>Trim start</span>
+          <input id="start" type="text" inputmode="numeric" placeholder="0:00" autocomplete="off">
+        </label>
+        <label class="field" id="f-end">
+          <span>Trim end</span>
+          <input id="end" type="text" inputmode="numeric" placeholder="end" autocomplete="off">
+        </label>
+        <label class="check" id="f-mute">
+          <input id="mute" type="checkbox"> <span>Remove audio</span>
+        </label>
+
+        <details class="adv">
+          <summary>Advanced</summary>
+          <label class="field">
+            <span>Extra FFmpeg arguments</span>
+            <input id="extra" type="text" placeholder="e.g. -r 30 -ac 1" autocomplete="off" spellcheck="false">
+          </label>
+          <div class="cmd-label">Command</div>
+          <pre id="cmd" class="cmd"></pre>
+        </details>
+
+        <div class="actions">
+          <button id="go" type="submit" class="primary">Convert</button>
+          <button id="cancel" type="button" class="ghost" hidden>Cancel</button>
+        </div>
+      </form>
+
+      <div id="status" class="status" hidden>
+        <div class="status-row">
+          <span id="status-text"></span>
+          <span id="status-pct"></span>
+        </div>
+        <progress id="bar" max="1"></progress>
+      </div>
+
+      <div id="error" class="error" role="alert" hidden></div>
+
+      <div id="result" class="result" hidden>
+        <div id="preview" class="preview"></div>
+        <div class="result-row">
+          <div>
+            <div id="rname" class="fname"></div>
+            <div id="rmeta" class="fmeta"></div>
+          </div>
+          <a id="download" class="primary button">Download</a>
+        </div>
+      </div>
+
+      <details id="logbox" class="logbox" hidden>
+        <summary>FFmpeg log</summary>
+        <pre id="log"></pre>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <p>Runs <a href="https://ffmpegwasm.netlify.app/" rel="noopener">ffmpeg.wasm</a> (FFmpeg compiled to WebAssembly) locally in a web worker. Your files stay on this device. <span id="engine"></span></p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
